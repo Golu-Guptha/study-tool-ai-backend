@@ -39,16 +39,29 @@ exports.downloadAudio = (url, videoId) => {
                 return reject(new Error(`yt-dlp binary not found at ${ytDlpPath}`));
             }
 
+            // Handle Cookies (Best way to bypass "Sign in" error)
+            const cookiesContent = process.env.YOUTUBE_COOKIES;
+            let cookiesPath = null;
+            if (cookiesContent) {
+                cookiesPath = path.join(__dirname, '../cookies.txt');
+                fs.writeFileSync(cookiesPath, cookiesContent);
+                console.log("Cookies file created at:", cookiesPath);
+            }
+
             const args = [
                 url,
-                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                '--referer', 'https://www.youtube.com/',
+                '--force-ipv4', // Try to bypass IP block
+                '--sleep-interval', '2', // Slow down to look human
                 '-f', 'bestaudio[ext=webm]',
                 '--output', filePath,
                 '--no-check-certificates',
                 '--no-warnings',
                 '--prefer-free-formats'
             ];
+
+            if (cookiesPath) {
+                args.push('--cookies', cookiesPath);
+            }
 
             execFile(ytDlpPath, args, (error, stdout, stderr) => {
                 if (error) {
