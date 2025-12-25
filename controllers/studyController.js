@@ -55,9 +55,12 @@ exports.processVideo = async (req, res) => {
             console.log("Transcript failed, falling back to audio download...");
             // Fallback: Download Audio
             try {
-                const audioPath = await videoService.downloadAudio(url, videoId);
+                const audioResult = await videoService.downloadAudio(url, videoId);
                 type = 'audio';
-                sourcePath = audioPath; // Local file path for audio
+                sourcePath = audioResult.filePath;
+                // Store mimeType in content momentarily or handle schema update? 
+                // Actually, schema 'content' is text. The 'source' is the path. 
+                // We'll trust the AI Service to detect mimeType from extension later in chat().
                 content = "Audio Content (Handled by AI Listening)";
             } catch (downloadErr) {
                 return res.status(400).json({ message: "No captions found and failed to download audio for analysis." });
@@ -106,7 +109,12 @@ exports.chat = async (req, res) => {
             // Read Audio file and send to AI
             const fileData = fs.readFileSync(session.source);
             const base64Data = fileData.toString('base64');
-            const filePart = { mimeType: 'audio/webm', data: base64Data };
+
+            // Detect Mime Type based on extension
+            const ext = session.source.split('.').pop().toLowerCase();
+            const mimeType = ext === 'm4a' ? 'audio/mp4' : (ext === 'mp3' ? 'audio/mp3' : 'audio/webm');
+
+            const filePart = { mimeType: mimeType, data: base64Data };
 
             const prompt = `Listen to this audio clip and answer the user's question.\nQuestion: ${question}`;
             answer = await aiService.generateResponse(prompt, filePart);

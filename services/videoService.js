@@ -21,12 +21,17 @@ exports.downloadAudio = (url, videoId) => {
                 fs.mkdirSync(outputDir, { recursive: true });
             }
 
-            const fileName = `${videoId}.webm`;
-            const filePath = path.join(outputDir, fileName);
-
-            if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
-                console.log("Audio already downloaded:", filePath);
-                return resolve(filePath);
+            // Check for existing files (webm or m4a)
+            const possibleExtensions = ['webm', 'm4a', 'mp3'];
+            for (const ext of possibleExtensions) {
+                const checkPath = path.join(outputDir, `${videoId}.${ext}`);
+                if (fs.existsSync(checkPath) && fs.statSync(checkPath).size > 0) {
+                    console.log("Audio already downloaded:", checkPath);
+                    return resolve({
+                        filePath: checkPath,
+                        mimeType: ext === 'm4a' ? 'audio/mp4' : `audio/${ext}`
+                    });
+                }
             }
 
             console.log("Downloading audio manually via yt-dlp for:", videoId);
@@ -39,21 +44,23 @@ exports.downloadAudio = (url, videoId) => {
                 return reject(new Error(`yt-dlp binary not found at ${ytDlpPath}`));
             }
 
-            // Handle Cookies (Best way to bypass "Sign in" error)
+            // Handle Cookies
             const cookiesContent = process.env.YOUTUBE_COOKIES;
             let cookiesPath = null;
             if (cookiesContent) {
                 cookiesPath = path.join(__dirname, '../cookies.txt');
                 fs.writeFileSync(cookiesPath, cookiesContent);
-                console.log("Cookies file created at:", cookiesPath);
             }
+
+            // Use template for output to let yt-dlp determine extension
+            const outputTemplate = path.join(outputDir, `${videoId}.%(ext)s`);
 
             const args = [
                 url,
-                '--force-ipv4', // Try to bypass IP block
-                '--sleep-interval', '2', // Slow down to look human
-                '-f', 'bestaudio[ext=webm]',
-                '--output', filePath,
+                '--force-ipv4',
+                '--sleep-interval', '2',
+                '-f', 'bestaudio/best', // Relaxed format
+                '--output', outputTemplate,
                 '--no-check-certificates',
                 '--no-warnings',
                 '--prefer-free-formats'
@@ -70,11 +77,19 @@ exports.downloadAudio = (url, videoId) => {
                 }
                 console.log("yt-dlp output:", stdout);
 
-                // Verify existence
-                if (fs.existsSync(filePath)) {
-                    resolve(filePath);
+                // Find the downloaded file
+                const files = fs.readdirSync(outputDir);
+                const downloadedFile = files.find(file => file.startsWith(videoId));
+
+                if (downloadedFile) {
+                    const finalPath = path.join(outputDir, downloadedFile);
+                    const ext = path.extname(downloadedFile).substring(1); // remove dot
+                    resolve({
+                        filePath: finalPath,
+                        mimeType: ext === 'm4a' ? 'audio/mp4' : `audio/${ext}`
+                    });
                 } else {
-                    resolve(filePath);
+                    reject(new Error("File not found after download"));
                 }
             });
 
