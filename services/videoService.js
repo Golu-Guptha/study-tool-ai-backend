@@ -40,7 +40,7 @@ exports.downloadAudio = (url, videoId) => {
 
             const args = [
                 url,
-                '--extract-audio',
+                url,
                 '-f', 'bestaudio[ext=webm]',
                 '--output', filePath,
                 '--no-check-certificates',
