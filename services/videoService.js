@@ -41,7 +41,6 @@ exports.downloadAudio = (url, videoId) => {
 
             const args = [
                 url,
-                url,
                 '-f', 'bestaudio[ext=webm]',
                 '--output', filePath,
                 '--no-check-certificates',
