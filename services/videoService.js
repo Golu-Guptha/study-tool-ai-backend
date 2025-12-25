@@ -32,7 +32,8 @@ exports.downloadAudio = (url, videoId) => {
             console.log("Downloading audio manually via yt-dlp for:", videoId);
 
             // Path to the binary installed by youtube-dl-exec
-            const ytDlpPath = path.join(__dirname, '../node_modules/youtube-dl-exec/bin/yt-dlp.exe');
+            const binaryName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+            const ytDlpPath = path.join(__dirname, '../node_modules/youtube-dl-exec/bin', binaryName);
 
             if (!fs.existsSync(ytDlpPath)) {
                 return reject(new Error(`yt-dlp binary not found at ${ytDlpPath}`));
